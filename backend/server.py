@@ -89,7 +89,6 @@ def index():
             "/api/history"
         ]
     })
-
 @app.route("/api/photo", methods=["POST"])
 def classify_photo():
     time.sleep(1)
@@ -106,20 +105,29 @@ def classify_photo():
     mime_type = image_file.content_type or "image/jpeg"
 
     prompt = """
-Analiza cuidadosamente la imagen. Identifica el objeto o residuo que aparece y clasifícalo estrictamente en UNA de estas categorías principales:
-- PLASTICO
-- METAL
-- VIDRIO
-- PAPEL
-- ORGANICO
-
-Comienza tu respuesta indicando claramente la categoría en mayúsculas (ej: PLASTICO, METAL, VIDRIO, PAPEL, ORGANICO), y luego explica brevemente por qué pertenece a esa categoría y cómo debe reciclarse.
+Analiza la imagen. Identifica el material principal. 
+DEBES empezar tu respuesta con UNA sola palabra en mayúsculas de esta lista: PLASTICO, METAL, VIDRIO, PAPEL, ORGANICO.
+Después de esa palabra, explica por qué y cómo reciclarlo.
 """
 
     result_text, model_used = call_gemini_rest(prompt, image_bytes=image_bytes, mime_type=mime_type)
 
     text_lower = result_text.lower()
-    detected_material = next((m for m in ["plastico", "metal", "vidrio", "papel", "organico"] if m in text_lower), "otro")
+
+    # Lógica mejorada para detectar materiales correctamente
+    keywords = {
+        "plastico": ["plastico", "plástico", "botella de pet", "envase de plastico"],
+        "metal": ["metal", "lata", "aluminio", "acero"],
+        "papel": ["papel", "carton", "cartón", "periodico", "revista"],
+        "vidrio": ["vidrio", "botella de cristal", "frasco"],
+        "organico": ["organico", "orgánico", "restos de comida", "fruta", "vegetal"]
+    }
+
+    detected_material = "otro"
+    for material, terms in keywords.items():
+        if any(term in text_lower for term in terms):
+            detected_material = material
+            break
 
     return jsonify({
         "success": True,

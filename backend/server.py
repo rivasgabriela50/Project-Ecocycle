@@ -46,11 +46,11 @@ def call_gemini_rest(prompt, image_bytes=None, mime_type="image/jpeg", system_in
         }]
     }
 
-    # Intentamos directamente con los dos endpoints y versiones más estables de Google AI
+    # Intentamos directamente con los endpoints más estables de Google AI
     endpoints_to_try = [
         ("https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent", "gemini-1.5-flash (v1)"),
         ("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent", "gemini-1.5-flash (v1beta)"),
-        ("https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent", "gemini-pro (v1)")
+        ("https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent", "gemini-2.0-flash (v1)")
     ]
 
     last_error = ""

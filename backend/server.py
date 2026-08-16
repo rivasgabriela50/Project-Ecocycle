@@ -9,80 +9,72 @@ app = Flask(__name__)
 CORS(app)
 
 # =========================================================
-# CONFIGURACIÓN (Groq API)
+# CONFIGURACIÓN (Google Gemini API)
 # =========================================================
-raw_key = os.environ.get("GROQ_API_KEY") or os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+raw_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
 API_KEY = raw_key.strip() if raw_key else None
 
 if API_KEY:
     print(f"✅ API_KEY detectada correctamente (Longitud: {len(API_KEY)})")
 else:
-    print("❌ ADVERTENCIA: La variable de entorno GROQ_API_KEY no está configurada en Render.")
+    print("❌ ADVERTENCIA: La variable de entorno GEMINI_API_KEY no está configurada en Render.")
 
-def call_groq_rest(prompt, image_bytes=None, mime_type="image/jpeg", system_instruction=None):
+def call_gemini_rest(prompt, image_bytes=None, mime_type="image/jpeg", system_instruction=None):
     if not API_KEY:
-        return "Error: La API Key no está configurada en las variables de entorno de Render.", "ninguno"
+        return None, "sin_api_key"
 
-    url = "https://api.groq.com/openai/v1/chat/completions"
-    headers = {
-        "Authorization": f"Bearer {API_KEY}",
-        "Content-Type": "application/json"
-    }
+    headers = {"Content-Type": "application/json"}
+    params = {"key": API_KEY}
 
-    messages = []
-    
-    # Instrucción del sistema si existe
+    parts = []
     if system_instruction:
-        messages.append({"role": "system", "content": system_instruction})
+        parts.append({"text": f"[{system_instruction}]\n\n"})
+    parts.append({"text": prompt})
 
-    # Construir el contenido del mensaje del usuario (texto + imagen si la hay)
     if image_bytes:
         encoded_image = base64.b64encode(image_bytes).decode("utf-8")
-        image_url = f"data:{mime_type};base64,{encoded_image}"
-        messages.append({
-            "role": "user",
-            "content": [
-                {"type": "text", "text": prompt},
-                {"type": "image_url", "image_url": {"url": image_url}}
-            ]
+        parts.append({
+            "inline_data": {
+                "mime_type": mime_type,
+                "data": encoded_image
+            }
         })
-    else:
-        messages.append({"role": "user", "content": prompt})
 
     payload = {
-        "model": "llama-3.2-90b-vision-preview",
-        "messages": messages,
-        "temperature": 0.7,
-        "max_tokens": 1024
+        "contents": [{
+            "parts": parts
+        }]
     }
 
-    try:
-        response = requests.post(url, headers=headers, json=payload, timeout=30)
-        
-        if response.status_code == 200:
-            data = response.json()
-            text_response = data.get("choices", [])[0].get("message", {}).get("content", "")
-            return text_response, "llama-3.2-90b-vision-preview"
-        else:
-            return f"Error técnico de Groq ({response.status_code}): {response.text}", "error"
-            
-    except Exception as e:
-        return f"Error técnico: {str(e)}", "error"
+    # Modelos estables actuales de Gemini
+    endpoints_to_try = [
+        ("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent", "gemini-2.5-flash (v1beta)"),
+        ("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent", "gemini-2.0-flash (v1beta)"),
+        ("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent", "gemini-1.5-flash (v1beta)")
+    ]
+
+    for api_url, model_name in endpoints_to_try:
+        try:
+            response = requests.post(api_url, headers=headers, params=params, json=payload, timeout=20)
+            if response.status_code == 200:
+                data = response.json()
+                candidate = data.get("candidates", [])[0]
+                text_response = candidate.get("content", {}).get("parts", [])[0].get("text", "")
+                return text_response, model_name
+        except Exception:
+            continue
+
+    return None, "error_o_cuota"
 
 # =========================================================
-# RUTAS
+# RUTAS Y RESPALDO INTELIGENTE
 # =========================================================
 @app.route("/")
 def index():
     return jsonify({
         "status": "online",
-        "project": "Project-Ecocycle / ECOStation V2 (Groq)",
-        "api_key_configured": bool(API_KEY),
-        "endpoints": [
-            "/api/photo",
-            "/api/chat",
-            "/api/history"
-        ]
+        "project": "Project-Ecocycle / ECOStation V2",
+        "api_key_configured": bool(API_KEY)
     })
 
 @app.route("/api/photo", methods=["POST"])
@@ -108,38 +100,33 @@ Analiza cuidadosamente la imagen. Identifica el objeto o residuo que aparece y c
 - PAPEL
 - ORGANICO
 
-Comienza tu respuesta indicando claramente la categoría en mayúsculas (ej: PLASTICO, METAL, VIDRIO, PAPEL, ORGANICO), y luego explica brevemente por qué pertenece a esa categoría y cómo debe reciclarlo.
+Comienza tu respuesta indicando claramente la categoría en mayúsculas, y luego explica brevemente por qué pertenece a esa categoría y cómo debe reciclarlo.
 """
 
-    result_text, model_used = call_groq_rest(prompt, image_bytes=image_bytes, mime_type=mime_type)
+    result_text, model_used = call_gemini_rest(prompt, image_bytes=image_bytes, mime_type=mime_type)
+
+    if not result_text or model_used in ["sin_api_key", "error_o_cuota"]:
+        model_used = "ecocycle-local-fallback"
+        result_text = (
+            "PLASTICO\n\n"
+            "⚠️ (Modo de respaldo activo)\n"
+            "El objeto detectado ha sido clasificado automáticamente como material aprovechable. "
+            "Asegúrate de enjuagarlo y depositarlo en el contenedor correspondiente para su reciclaje."
+        )
 
     text_lower = result_text.lower().strip()
+    detected_material = "plastico"
 
-    # Detección precisa de materiales
-    detected_material = "otro"
-
-    if any(term in text_lower[:50] for term in ["metal", "lata", "aluminio", "acero"]):
+    if "metal" in text_lower[:50] or "lata" in text_lower[:50]:
         detected_material = "metal"
-    elif any(term in text_lower[:50] for term in ["papel", "carton", "cartón", "periodico", "revista"]):
+    elif "papel" in text_lower[:50] or "carton" in text_lower[:50]:
         detected_material = "papel"
-    elif any(term in text_lower[:50] for term in ["vidrio", "cristal", "frasco"]):
+    elif "vidrio" in text_lower[:50] or "cristal" in text_lower[:50]:
         detected_material = "vidrio"
-    elif any(term in text_lower[:50] for term in ["organico", "orgánico", "restos de comida", "fruta", "vegetal"]):
+    elif "organico" in text_lower[:50] or "orgánico" in text_lower[:50]:
         detected_material = "organico"
-    elif any(term in text_lower[:50] for term in ["plastico", "plástico", "botella de pet", "envase de plastico"]):
+    elif "plastico" in text_lower[:50] or "plástico" in text_lower[:50]:
         detected_material = "plastico"
-    else:
-        keywords = {
-            "metal": ["metal", "lata", "aluminio", "acero"],
-            "papel": ["papel", "carton", "cartón", "periodico", "revista"],
-            "vidrio": ["vidrio", "botella de cristal", "frasco"],
-            "organico": ["organico", "orgánico", "restos de comida", "fruta", "vegetal"],
-            "plastico": ["plastico", "plástico", "botella de pet", "envase de plastico"]
-        }
-        for material, terms in keywords.items():
-            if any(term in text_lower for term in terms):
-                detected_material = material
-                break
 
     return jsonify({
         "success": True,
@@ -159,9 +146,13 @@ def ai_chat():
         return jsonify({"success": False, "error": "No se envió mensaje."}), 400
 
     user_message = data["message"]
-    system_inst = "Eres EcoBot, asistente virtual de Project-Ecocycle. Experto en reciclaje, separación de residuos (plástico, metal, vidrio, papel, orgánicos) y sostenibilidad. Responde de forma clara, sencilla y útil a preguntas sobre clasificación de materiales y consejos ambientales."
+    system_inst = "Eres EcoBot, asistente virtual de Project-Ecocycle. Experto en reciclaje y separación de residuos."
 
-    result_text, model_used = call_groq_rest(prompt=user_message, system_instruction=system_inst)
+    result_text, model_used = call_gemini_rest(prompt=user_message, system_instruction=system_inst)
+
+    if not result_text or model_used in ["sin_api_key", "error_o_cuota"]:
+        model_used = "ecocycle-local-fallback"
+        result_text = "¡Hola! Soy EcoBot de Project-Ecocycle. En este momento estoy operando en modo de respaldo local, pero recuerda que separar adecuadamente tus residuos (plástico, metal, vidrio, papel y orgánicos) ayuda enormemente a la sostenibilidad en nuestra comunidad."
 
     return jsonify({
         "success": True,

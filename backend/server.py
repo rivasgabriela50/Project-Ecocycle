@@ -17,53 +17,64 @@ API_KEY = raw_key.strip() if raw_key else None
 if API_KEY:
     print(f"✅ API_KEY detectada correctamente (Longitud: {len(API_KEY)})")
 else:
-    print("❌ ADVERTENCIA: La variable de entorno GEMINI_API_KEY no está configurada en Render.")
+    print("❌ [Error]: La variable GEMINI_API_KEY está vacía o no existe en el entorno de Render.")
 
 def call_gemini_rest(prompt, image_bytes=None, mime_type="image/jpeg", system_instruction=None):
     if not API_KEY:
+        print("❌ [Error]: No se puede llamar a Gemini porque falta la GEMINI_API_KEY.")
         return None, "sin_api_key"
 
     headers = {"Content-Type": "application/json"}
     params = {"key": API_KEY}
 
-    parts = []
+    contents = []
     if system_instruction:
-        parts.append({"text": f"[{system_instruction}]\n\n"})
-    parts.append({"text": prompt})
-
+        contents.append({
+            "role": "user",
+            "parts": [{"text": f"Instrucción del sistema: {system_instruction}"}]
+        })
+    
+    parts_list = [{"text": prompt}]
     if image_bytes:
         encoded_image = base64.b64encode(image_bytes).decode("utf-8")
-        parts.append({
+        parts_list.append({
             "inline_data": {
                 "mime_type": mime_type,
                 "data": encoded_image
             }
         })
+    
+    contents.append({
+        "role": "user",
+        "parts": parts_list
+    })
 
-    payload = {
-        "contents": [{
-            "parts": parts
-        }]
-    }
+    payload = {"contents": contents}
 
-    # Modelos estables actuales de Gemini
+    # Modelos oficiales estables actuales de la API v1beta
     endpoints_to_try = [
-        ("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent", "gemini-2.5-flash (v1beta)"),
-        ("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent", "gemini-2.0-flash (v1beta)"),
-        ("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent", "gemini-1.5-flash (v1beta)")
+        ("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent", "gemini-2.0-flash"),
+        ("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent", "gemini-1.5-flash")
     ]
 
     for api_url, model_name in endpoints_to_try:
         try:
-            response = requests.post(api_url, headers=headers, params=params, json=payload, timeout=20)
+            print(f"🔄 Intentando conectar con Gemini usando {model_name}...")
+            response = requests.post(api_url, headers=headers, params=params, json=payload, timeout=25)
+            
             if response.status_code == 200:
                 data = response.json()
                 candidate = data.get("candidates", [])[0]
                 text_response = candidate.get("content", {}).get("parts", [])[0].get("text", "")
+                print(f"✅ ¡Conexión exitosa con {model_name}!")
                 return text_response, model_name
-        except Exception:
+            else:
+                print(f"⚠️ {model_name} respondió con código {response.status_code}: {response.text}")
+        except Exception as e:
+            print(f"❌ Excepción conectando a {model_name}: {e}")
             continue
 
+    print("🚨 Todos los intentos con Gemini fallaron. Activando respaldo local.")
     return None, "error_o_cuota"
 
 # =========================================================

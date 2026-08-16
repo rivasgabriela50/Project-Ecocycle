@@ -50,7 +50,7 @@ def call_groq_rest(prompt, image_bytes=None, mime_type="image/jpeg", system_inst
         messages.append({"role": "user", "content": prompt})
 
     payload = {
-        "model": "llama-3.2-11b-vision-preview",
+        "model": "llama-3.2-90b-vision-preview",
         "messages": messages,
         "temperature": 0.7,
         "max_tokens": 1024
@@ -62,7 +62,7 @@ def call_groq_rest(prompt, image_bytes=None, mime_type="image/jpeg", system_inst
         if response.status_code == 200:
             data = response.json()
             text_response = data.get("choices", [])[0].get("message", {}).get("content", "")
-            return text_response, "llama-3.2-11b-vision-preview"
+            return text_response, "llama-3.2-90b-vision-preview"
         else:
             return f"Error técnico de Groq ({response.status_code}): {response.text}", "error"
             

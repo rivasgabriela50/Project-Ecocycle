@@ -46,11 +46,12 @@ def call_gemini_rest(prompt, image_bytes=None, mime_type="image/jpeg", system_in
         }]
     }
 
-    # Endpoints estables con la familia gemini-1.5
+
+    # Endpoints actualizados con las versiones estables vigentes
     endpoints_to_try = [
-        ("https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent", "gemini-1.5-flash (v1)"),
-        ("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent", "gemini-1.5-flash (v1beta)"),
-        ("https://generativelanguage.googleapis.com/v1/models/gemini-1.5-pro:generateContent", "gemini-1.5-pro (v1)")
+        ("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent", "gemini-3.5-flash (v1beta)"),
+        ("https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent", "gemini-2.5-flash (v1)"),
+        ("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent", "gemini-2.5-flash (v1beta)")
     ]
 
     last_error = ""

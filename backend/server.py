@@ -9,7 +9,7 @@ app = Flask(__name__)
 CORS(app)
 
 # =========================================================
-# CONFIGURACIÓN
+# CONFIGURACIÓN (Intacta como pediste)
 # =========================================================
 raw_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
 API_KEY = raw_key.strip() if raw_key else None
@@ -46,7 +46,7 @@ def call_gemini_rest(prompt, image_bytes=None, mime_type="image/jpeg", system_in
         }]
     }
 
-    # Los modelos con los que te funcionó perfectamente el chat
+    # Endpoints estables (Sin cambios)
     endpoints_to_try = [
         ("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent", "gemini-3.5-flash (v1beta)"),
         ("https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent", "gemini-2.5-flash (v1)"),
@@ -118,8 +118,8 @@ Comienza tu respuesta indicando claramente la categoría en mayúsculas (ej: PLA
     result_text, model_used = call_gemini_rest(prompt, image_bytes=image_bytes, mime_type=mime_type)
 
     text_lower = result_text.lower()
-
-    # Lógica ampliada para detectar todos los materiales correctamente
+    
+    # 🔍 Único cambio: Diccionario ampliado para detectar cartón, latas y orgánicos correctamente
     keywords = {
         "plastico": ["plastico", "plástico", "botella de pet", "envase de plastico"],
         "metal": ["metal", "lata", "aluminio", "acero"],

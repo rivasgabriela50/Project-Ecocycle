@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ECOStation V2 - Centro de Control</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="dashboard-body">
+
+  <header class="dashboard-header">
+    <div class="logo-container">
+      <span class="logo-text">🌱 ECOStation V2</span>
+    </div>
+    <a href="index.html" class="btn-back">← Volver al sitio principal</a>
+  </header>
+
+  <main class="dashboard-grid">
+    
+    <!-- 1. CÁMARA Y ANÁLISIS VISUAL -->
+    <section class="card camera-card">
+      <h2>📷 Análisis Visual de Basura <span class="status-live">• En Vivo</span></h2>
+      <div class="video-container">
+        <video id="webcam" autoplay playsinline muted></video>
+      </div>
+      <!-- Canvas oculto para capturar los fotogramas -->
+      <canvas id="hiddenCanvas" style="display: none;"></canvas>
+      
+      <!-- ID Corregido: btnSnapshot -->
+      <button type="button" id="btnSnapshot" class="btn-action">TOMAR FOTO Y CLASIFICAR</button>
+      
+      <div class="result-box">
+        <span id="resIcon">♻️</span>
+        <h3 id="resMaterial">Esperando captura...</h3>
+        <p id="resDetail">Enfoca un objeto y presiona el botón.</p>
+      </div>
+    </section>
+
+    <!-- 2. ASISTENTE VIRTUAL ECO (CHAT) -->
+    <section class="card chat-card">
+      <h2>🤖 Asistente Virtual ECO</h2>
+      <div id="chatArea" class="chat-box">
+        <div class="message bot-message">
+          ¡Hola! Soy ECO 🌿. Puedes preguntarme sobre reciclaje o qué tipo de residuos componen cada material.
+        </div>
+      </div>
+      <div class="chat-input-container">
+        <input type="text" id="chatInput" placeholder="Haz una pregunta sobre reciclaje..." />
+        <!-- ID Corregido: btnChat -->
+        <button type="button" id="btnChat" class="btn-send">➔</button>
+      </div>
+    </section>
+
+    <!-- 3. ESTADO DE CONTENEDORES -->
+    <section class="card containers-card">
+      <h2>🗑️ Estado de Contenedores</h2>
+      <ul class="container-list">
+        <li><span><span class="dot yellow"></span> Papel / Cartón</span> <strong id="count-papel">0</strong></li>
+        <li><span><span class="dot gray"></span> Metal</span> <strong id="count-metal">0</strong></li>
+        <li><span><span class="dot green"></span> Vidrio</span> <strong id="count-vidrio">0</strong></li>
+        <li><span><span class="dot blue"></span> Plástico</span> <strong id="count-plastico">0</strong></li>
+        <li><span><span class="dot orange"></span> Orgánico</span> <strong id="count-organico">0</strong></li>
+      </ul>
+    </section>
+
+  </main>
+
+  <script src="script2.js"></script>
+</body>
+</html>

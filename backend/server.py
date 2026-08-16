@@ -51,11 +51,11 @@ def call_gemini_rest(prompt, image_bytes=None, mime_type="image/jpeg", system_in
 
     payload = {"contents": contents}
 
-    # Corrección: Usar la versión estable v1 en lugar de v1beta
+    # Modelos actualizados vigentes
     endpoints_to_try = [
-        ("https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent", "gemini-1.5-flash (v1)"),
         ("https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent", "gemini-2.0-flash (v1)"),
-        ("https://generativelanguage.googleapis.com/v1/models/gemini-1.5-pro:generateContent", "gemini-1.5-pro (v1)")
+        ("https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent", "gemini-1.5-flash (v1)"),
+        ("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent", "gemini-2.0-flash (v1beta)")
     ]
 
     for api_url, model_name in endpoints_to_try:

@@ -9,7 +9,7 @@ app = Flask(__name__)
 CORS(app)
 
 # =========================================================
-# CONFIGURACIÓN (Intacta como pediste)
+# CONFIGURACIÓN
 # =========================================================
 raw_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
 API_KEY = raw_key.strip() if raw_key else None
@@ -46,10 +46,9 @@ def call_gemini_rest(prompt, image_bytes=None, mime_type="image/jpeg", system_in
         }]
     }
 
-    # Endpoints estables (Sin cambios)
     endpoints_to_try = [
         ("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent", "gemini-3.5-flash (v1beta)"),
-        ("https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent", "gemini-2.5-flash (v1)"),
+        ("https://generativelanguage.googleapis.com/v1/models/gemini-3.5-flash:generateContent", "gemini-3.5-flash (v1)"),
         ("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent", "gemini-2.5-flash (v1beta)")
     ]
 
@@ -117,22 +116,35 @@ Comienza tu respuesta indicando claramente la categoría en mayúsculas (ej: PLA
 
     result_text, model_used = call_gemini_rest(prompt, image_bytes=image_bytes, mime_type=mime_type)
 
-    text_lower = result_text.lower()
-    
-    # 🔍 Único cambio: Diccionario ampliado para detectar cartón, latas y orgánicos correctamente
-    keywords = {
-        "plastico": ["plastico", "plástico", "botella de pet", "envase de plastico"],
-        "metal": ["metal", "lata", "aluminio", "acero"],
-        "papel": ["papel", "carton", "cartón", "periodico", "revista"],
-        "vidrio": ["vidrio", "botella de cristal", "frasco"],
-        "organico": ["organico", "orgánico", "restos de comida", "fruta", "vegetal"]
-    }
+    text_lower = result_text.lower().strip()
 
+    # Detección robusta: Prioriza el inicio de la respuesta (donde la IA coloca la categoría)
+    # para evitar que menciones secundarias de la palabra "plástico" en la explicación alteren el resultado.
     detected_material = "otro"
-    for material, terms in keywords.items():
-        if any(term in text_lower for term in terms):
-            detected_material = material
-            break
+
+    if any(term in text_lower[:50] for term in ["metal", "lata", "aluminio", "acero"]):
+        detected_material = "metal"
+    elif any(term in text_lower[:50] for term in ["papel", "carton", "cartón", "periodico", "revista"]):
+        detected_material = "papel"
+    elif any(term in text_lower[:50] for term in ["vidrio", "cristal", "frasco"]):
+        detected_material = "vidrio"
+    elif any(term in text_lower[:50] for term in ["organico", "orgánico", "restos de comida", "fruta", "vegetal"]):
+        detected_material = "organico"
+    elif any(term in text_lower[:50] for term in ["plastico", "plástico", "botella de pet", "envase de plastico"]):
+        detected_material = "plastico"
+    else:
+        # Búsqueda general de respaldo en todo el texto si no está al inicio
+        keywords = {
+            "metal": ["metal", "lata", "aluminio", "acero"],
+            "papel": ["papel", "carton", "cartón", "periodico", "revista"],
+            "vidrio": ["vidrio", "botella de cristal", "frasco"],
+            "organico": ["organico", "orgánico", "restos de comida", "fruta", "vegetal"],
+            "plastico": ["plastico", "plástico", "botella de pet", "envase de plastico"]
+        }
+        for material, terms in keywords.items():
+            if any(term in text_lower for term in terms):
+                detected_material = material
+                break
 
     return jsonify({
         "success": True,

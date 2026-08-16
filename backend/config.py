@@ -1,84 +1,57 @@
-"""
-Configuración de la aplicación Ecocycle
-"""
+def call_gemini_rest(prompt, image_bytes=None, mime_type="image/jpeg", system_instruction=None):
+    if not API_KEY:
+        print("❌ [Error]: La variable GEMINI_API_KEY está vacía o no existe en el entorno.")
+        return None, "sin_api_key"
 
-import os
-from datetime import timedelta
+    headers = {"Content-Type": "application/json"}
+    params = {"key": API_KEY}
 
-
-class Config:
-    """Configuración base de la aplicación"""
+    contents = []
+    if system_instruction:
+        contents.append({
+            "role": "user",
+            "parts": [{"text": f"Instrucción del sistema: {system_instruction}"}]
+        })
     
-    # Información general
-    APP_NAME = "Ecocycle"
-    APP_VERSION = "1.0.0"
-    DEBUG = os.getenv("DEBUG", "False") == "True"
+    parts_list = [{"text": prompt}]
+    if image_bytes:
+        encoded_image = base64.b64encode(image_bytes).decode("utf-8")
+        parts_list.append({
+            "inline_data": {
+                "mime_type": mime_type,
+                "data": encoded_image
+            }
+        })
     
-    # Base de datos
-    SQLALCHEMY_DATABASE_URI = os.getenv(
-        "DATABASE_URL",
-        "sqlite:///ecocycle.db"
-    )
-    SQLALCHEMY_TRACK_MODIFICATIONS = False
-    
-    # Seguridad
-    SECRET_KEY = os.getenv("SECRET_KEY", "ecocycle-dev-secret-key-change-in-production")
-    JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "ecocycle-jwt-secret-key")
-    JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=24)
-    
-    # CORS
-    CORS_ORIGINS = os.getenv("CORS_ORIGINS", "*").split(",")
-    
-    # Rutas
-    UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), "uploads")
-    MAX_CONTENT_LENGTH = 50 * 1024 * 1024  # 50MB máximo
-    
-    # Métricas de impacto (valores por defecto)
-    DEFAULT_METRICS = {
-        "energia_ahorrada_kwh": 0,
-        "emisiones_reducidas_kg": 0,
-        "eficiencia_porcentaje": 0,
-        "autonomia_horas": 0
-    }
-    
-    # Configuración de modelos ML
-    MODEL_PATH = os.path.join(os.path.dirname(__file__), "models")
-    CLASSIFIER_MODEL = "classifier_model.pkl"
-    
-    # Logging
-    LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
-    LOG_FILE = os.path.join(os.path.dirname(__file__), "logs", "ecocycle.log")
+    contents.append({
+        "role": "user",
+        "parts": parts_list
+    })
 
+    payload = {"contents": contents}
 
-class DevelopmentConfig(Config):
-    """Configuración para desarrollo"""
-    DEBUG = True
-    SQLALCHEMY_ECHO = True
+    # Modelos oficiales estables actuales
+    endpoints_to_try = [
+        ("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent", "gemini-2.0-flash"),
+        ("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent", "gemini-1.5-flash")
+    ]
 
+    for api_url, model_name in endpoints_to_try:
+        try:
+            print(f"🔄 Intentando conectar con Gemini usando {model_name}...")
+            response = requests.post(api_url, headers=headers, params=params, json=payload, timeout=25)
+            
+            if response.status_code == 200:
+                data = response.json()
+                candidate = data.get("candidates", [])[0]
+                text_response = candidate.get("content", {}).get("parts", [])[0].get("text", "")
+                print(f"✅ ¡Conexión exitosa con {model_name}!")
+                return text_response, model_name
+            else:
+                print(f"⚠️ {model_name} respondió con código {response.status_code}: {response.text}")
+        except Exception as e:
+            print(f"❌ Excepción conectando a {model_name}: {e}")
+            continue
 
-class ProductionConfig(Config):
-    """Configuración para producción"""
-    DEBUG = False
-    SQLALCHEMY_ECHO = False
-
-
-class TestingConfig(Config):
-    """Configuración para testing"""
-    TESTING = True
-    SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
-
-
-# Selector de configuración
-config_dict = {
-    "development": DevelopmentConfig,
-    "production": ProductionConfig,
-    "testing": TestingConfig,
-    "default": DevelopmentConfig
-}
-
-
-def get_config(env=None):
-    """Obtiene la configuración según el ambiente"""
-    if env is None:
-        env = os.getenv("FLASK_ENV", "development")
-    return config_dict.get(env, config_dict["default"])
+    print("🚨 Todos los intentos con Gemini fallaron. Activando respaldo local.")
+    return None, "error_o_cuota"

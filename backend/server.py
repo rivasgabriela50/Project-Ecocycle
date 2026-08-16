@@ -46,11 +46,11 @@ def call_gemini_rest(prompt, image_bytes=None, mime_type="image/jpeg", system_in
         }]
     }
 
-    # Modelos estables y oficiales que garantizan que el chat y la cámara funcionen
+    # Los modelos con los que te funcionó perfectamente el chat
     endpoints_to_try = [
-        ("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent", "gemini-1.5-flash (v1beta)"),
-        ("https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent", "gemini-1.5-flash (v1)"),
-        ("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent", "gemini-1.5-pro (v1beta)")
+        ("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent", "gemini-3.5-flash (v1beta)"),
+        ("https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent", "gemini-2.5-flash (v1)"),
+        ("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent", "gemini-2.5-flash (v1beta)")
     ]
 
     last_error = ""
@@ -119,7 +119,7 @@ Comienza tu respuesta indicando claramente la categoría en mayúsculas (ej: PLA
 
     text_lower = result_text.lower()
 
-    # Lógica ampliada para detectar todos los materiales (incluyendo cartón, latas, etc.)
+    # Lógica ampliada para detectar todos los materiales correctamente
     keywords = {
         "plastico": ["plastico", "plástico", "botella de pet", "envase de plastico"],
         "metal": ["metal", "lata", "aluminio", "acero"],

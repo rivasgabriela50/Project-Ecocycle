@@ -51,10 +51,9 @@ def call_gemini_rest(prompt, image_bytes=None, mime_type="image/jpeg", system_in
 
     payload = {"contents": contents}
 
-    # Modelo oficial actual vigente
+    # Modelo oficial actual recomendado en la versión estable v1
     endpoints_to_try = [
-        ("https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent", "gemini-2.5-flash (v1)"),
-        ("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent", "gemini-2.5-flash (v1beta)")
+        ("https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent", "gemini-2.5-flash (v1)")
     ]
 
     for api_url, model_name in endpoints_to_try:

@@ -46,12 +46,11 @@ def call_gemini_rest(prompt, image_bytes=None, mime_type="image/jpeg", system_in
         }]
     }
 
-
-    # Endpoints actualizados con las versiones estables vigentes
+    # Modelos estables y oficiales que garantizan que el chat y la cámara funcionen
     endpoints_to_try = [
-        ("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent", "gemini-3.5-flash (v1beta)"),
-        ("https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent", "gemini-2.5-flash (v1)"),
-        ("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent", "gemini-2.5-flash (v1beta)")
+        ("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent", "gemini-1.5-flash (v1beta)"),
+        ("https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent", "gemini-1.5-flash (v1)"),
+        ("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent", "gemini-1.5-pro (v1beta)")
     ]
 
     last_error = ""
@@ -89,6 +88,7 @@ def index():
             "/api/history"
         ]
     })
+
 @app.route("/api/photo", methods=["POST"])
 def classify_photo():
     time.sleep(1)
@@ -105,16 +105,21 @@ def classify_photo():
     mime_type = image_file.content_type or "image/jpeg"
 
     prompt = """
-Analiza la imagen. Identifica el material principal. 
-DEBES empezar tu respuesta con UNA sola palabra en mayúsculas de esta lista: PLASTICO, METAL, VIDRIO, PAPEL, ORGANICO.
-Después de esa palabra, explica por qué y cómo reciclarlo.
+Analiza cuidadosamente la imagen. Identifica el objeto o residuo que aparece y clasifícalo estrictamente en UNA de estas categorías principales:
+- PLASTICO
+- METAL
+- VIDRIO
+- PAPEL
+- ORGANICO
+
+Comienza tu respuesta indicando claramente la categoría en mayúsculas (ej: PLASTICO, METAL, VIDRIO, PAPEL, ORGANICO), y luego explica brevemente por qué pertenece a esa categoría y cómo debe reciclarlo.
 """
 
     result_text, model_used = call_gemini_rest(prompt, image_bytes=image_bytes, mime_type=mime_type)
 
     text_lower = result_text.lower()
 
-    # Lógica mejorada para detectar materiales correctamente
+    # Lógica ampliada para detectar todos los materiales (incluyendo cartón, latas, etc.)
     keywords = {
         "plastico": ["plastico", "plástico", "botella de pet", "envase de plastico"],
         "metal": ["metal", "lata", "aluminio", "acero"],

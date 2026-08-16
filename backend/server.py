@@ -46,10 +46,11 @@ def call_gemini_rest(prompt, image_bytes=None, mime_type="image/jpeg", system_in
         }]
     }
 
+    # Modelo principal gemini-3.5-flash
     endpoints_to_try = [
         ("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent", "gemini-3.5-flash (v1beta)"),
         ("https://generativelanguage.googleapis.com/v1/models/gemini-3.5-flash:generateContent", "gemini-3.5-flash (v1)"),
-        ("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent", "gemini-2.5-flash (v1beta)")
+        ("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent", "gemini-3.5-flash (v1beta)")
     ]
 
     last_error = ""
@@ -118,8 +119,7 @@ Comienza tu respuesta indicando claramente la categoría en mayúsculas (ej: PLA
 
     text_lower = result_text.lower().strip()
 
-    # Detección robusta: Prioriza el inicio de la respuesta (donde la IA coloca la categoría)
-    # para evitar que menciones secundarias de la palabra "plástico" en la explicación alteren el resultado.
+    # Detección precisa basada en el inicio de la respuesta para evitar falsos positivos
     detected_material = "otro"
 
     if any(term in text_lower[:50] for term in ["metal", "lata", "aluminio", "acero"]):
@@ -133,7 +133,6 @@ Comienza tu respuesta indicando claramente la categoría en mayúsculas (ej: PLA
     elif any(term in text_lower[:50] for term in ["plastico", "plástico", "botella de pet", "envase de plastico"]):
         detected_material = "plastico"
     else:
-        # Búsqueda general de respaldo en todo el texto si no está al inicio
         keywords = {
             "metal": ["metal", "lata", "aluminio", "acero"],
             "papel": ["papel", "carton", "cartón", "periodico", "revista"],

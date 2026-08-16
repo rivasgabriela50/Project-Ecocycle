@@ -1,5 +1,5 @@
 // URL oficial de tu backend desplegado en Render
-const API_BASE_URL = "https://project-ecocycle-ncbn.onrender.com";
+const API_BASE_URL = "https://project-ecocycle-1.onrender.com";
 
 const MATERIALS = {
   papel:    { name: "Papel / Cartón", icon: "📄", bin: 1 },

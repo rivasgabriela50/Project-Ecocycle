@@ -127,17 +127,19 @@ Comienza tu respuesta indicando claramente la categoría en mayúsculas, y luego
         )
 
     text_lower = result_text.lower().strip()
-    detected_material = "plastico"
+    
+    # Detección inteligente ampliada para cubrir todas las categorías
+    detected_material = "plastico"  # por defecto si no hay coincidencia clara
 
-    if "metal" in text_lower[:50] or "lata" in text_lower[:50]:
+    if any(keyword in text_lower for keyword in ["metal", "lata", "aluminio", "hierro", "acero"]):
         detected_material = "metal"
-    elif "papel" in text_lower[:50] or "carton" in text_lower[:50]:
+    elif any(keyword in text_lower for keyword in ["papel", "carton", "cartón", "periodico", "revista"]):
         detected_material = "papel"
-    elif "vidrio" in text_lower[:50] or "cristal" in text_lower[:50]:
+    elif any(keyword in text_lower for keyword in ["vidrio", "cristal", "botella de vidrio"]):
         detected_material = "vidrio"
-    elif "organico" in text_lower[:50] or "orgánico" in text_lower[:50]:
+    elif any(keyword in text_lower for keyword in ["organico", "orgánico", "comida", "resto", "fruta", "verdura", "vegetal"]):
         detected_material = "organico"
-    elif "plastico" in text_lower[:50] or "plástico" in text_lower[:50]:
+    elif any(keyword in text_lower for keyword in ["plastico", "plástico", "pet", "envase"]):
         detected_material = "plastico"
 
     return jsonify({

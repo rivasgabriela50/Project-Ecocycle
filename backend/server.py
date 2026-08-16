@@ -9,69 +9,65 @@ app = Flask(__name__)
 CORS(app)
 
 # =========================================================
-# CONFIGURACIÓN
+# CONFIGURACIÓN (Groq API)
 # =========================================================
-raw_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+raw_key = os.environ.get("GROQ_API_KEY") or os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
 API_KEY = raw_key.strip() if raw_key else None
 
 if API_KEY:
     print(f"✅ API_KEY detectada correctamente (Longitud: {len(API_KEY)})")
 else:
-    print("❌ ADVERTENCIA: La variable de entorno GEMINI_API_KEY no está configurada en Render.")
+    print("❌ ADVERTENCIA: La variable de entorno GROQ_API_KEY no está configurada en Render.")
 
-def call_gemini_rest(prompt, image_bytes=None, mime_type="image/jpeg", system_instruction=None):
+def call_groq_rest(prompt, image_bytes=None, mime_type="image/jpeg", system_instruction=None):
     if not API_KEY:
         return "Error: La API Key no está configurada en las variables de entorno de Render.", "ninguno"
 
-    headers = {"Content-Type": "application/json"}
-    params = {"key": API_KEY}
-
-    parts = []
-    if system_instruction:
-        parts.append({"text": f"[{system_instruction}]\n\n"})
-    parts.append({"text": prompt})
-
-    if image_bytes:
-        encoded_image = base64.b64encode(image_bytes).decode("utf-8")
-        parts.append({
-            "inline_data": {
-                "mime_type": mime_type,
-                "data": encoded_image
-            }
-        })
-
-    payload = {
-        "contents": [{
-            "parts": parts
-        }]
+    url = "https://api.groq.com/openai/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {API_KEY}",
+        "Content-Type": "application/json"
     }
 
-    # Modelo principal gemini-3.5-flash
-    endpoints_to_try = [
-        ("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent", "gemini-3.5-flash (v1beta)"),
-        ("https://generativelanguage.googleapis.com/v1/models/gemini-3.5-flash:generateContent", "gemini-3.5-flash (v1)"),
-        ("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent", "gemini-3.5-flash (v1beta)")
-    ]
+    messages = []
+    
+    # Instrucción del sistema si existe
+    if system_instruction:
+        messages.append({"role": "system", "content": system_instruction})
 
-    last_error = ""
+    # Construir el contenido del mensaje del usuario (texto + imagen si la hay)
+    if image_bytes:
+        encoded_image = base64.b64encode(image_bytes).decode("utf-8")
+        image_url = f"data:{mime_type};base64,{encoded_image}"
+        messages.append({
+            "role": "user",
+            "content": [
+                {"type": "text", "text": prompt},
+                {"type": "image_url", "image_url": {"url": image_url}}
+            ]
+        })
+    else:
+        messages.append({"role": "user", "content": prompt})
 
-    for api_url, model_name in endpoints_to_try:
-        try:
-            response = requests.post(api_url, headers=headers, params=params, json=payload, timeout=30)
+    payload = {
+        "model": "llama-3.2-11b-vision-preview",
+        "messages": messages,
+        "temperature": 0.7,
+        "max_tokens": 1024
+    }
+
+    try:
+        response = requests.post(url, headers=headers, json=payload, timeout=30)
+        
+        if response.status_code == 200:
+            data = response.json()
+            text_response = data.get("choices", [])[0].get("message", {}).get("content", "")
+            return text_response, "llama-3.2-11b-vision-preview"
+        else:
+            return f"Error técnico de Groq ({response.status_code}): {response.text}", "error"
             
-            if response.status_code == 200:
-                data = response.json()
-                candidate = data.get("candidates", [])[0]
-                text_response = candidate.get("content", {}).get("parts", [])[0].get("text", "")
-                return text_response, model_name
-            else:
-                last_error = response.text
-                continue
-        except Exception as e:
-            last_error = str(e)
-            continue
-
-    return f"Error técnico: Ningún modelo respondió. Detalle: {last_error}", "error"
+    except Exception as e:
+        return f"Error técnico: {str(e)}", "error"
 
 # =========================================================
 # RUTAS
@@ -80,7 +76,7 @@ def call_gemini_rest(prompt, image_bytes=None, mime_type="image/jpeg", system_in
 def index():
     return jsonify({
         "status": "online",
-        "project": "Project-Ecocycle / ECOStation V2",
+        "project": "Project-Ecocycle / ECOStation V2 (Groq)",
         "api_key_configured": bool(API_KEY),
         "endpoints": [
             "/api/photo",
@@ -115,11 +111,11 @@ Analiza cuidadosamente la imagen. Identifica el objeto o residuo que aparece y c
 Comienza tu respuesta indicando claramente la categoría en mayúsculas (ej: PLASTICO, METAL, VIDRIO, PAPEL, ORGANICO), y luego explica brevemente por qué pertenece a esa categoría y cómo debe reciclarlo.
 """
 
-    result_text, model_used = call_gemini_rest(prompt, image_bytes=image_bytes, mime_type=mime_type)
+    result_text, model_used = call_groq_rest(prompt, image_bytes=image_bytes, mime_type=mime_type)
 
     text_lower = result_text.lower().strip()
 
-    # Detección precisa basada en el inicio de la respuesta para evitar falsos positivos
+    # Detección precisa de materiales
     detected_material = "otro"
 
     if any(term in text_lower[:50] for term in ["metal", "lata", "aluminio", "acero"]):
@@ -165,7 +161,7 @@ def ai_chat():
     user_message = data["message"]
     system_inst = "Eres EcoBot, asistente virtual de Project-Ecocycle. Experto en reciclaje, separación de residuos (plástico, metal, vidrio, papel, orgánicos) y sostenibilidad. Responde de forma clara, sencilla y útil a preguntas sobre clasificación de materiales y consejos ambientales."
 
-    result_text, model_used = call_gemini_rest(prompt=user_message, system_instruction=system_inst)
+    result_text, model_used = call_groq_rest(prompt=user_message, system_instruction=system_inst)
 
     return jsonify({
         "success": True,
